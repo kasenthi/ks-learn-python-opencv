@@ -2,6 +2,7 @@
 faces/*
 audio/child_voice.mp3
 audio/speech.mp3
+audio/unknown.mp3
 
 # Trained model and labels
 *.yml
