@@ -1,5 +1,6 @@
 # Generated biometric and training data
-faces/child_voice.mp3
+faces/*
+audio/child_voice.mp3
 audio/speech.mp3
 
 # Trained model and labels
