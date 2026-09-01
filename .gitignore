@@ -1,0 +1,15 @@
+# Generated biometric and training data
+faces/
+audio/
+
+# Trained model and labels
+*.yml
+*.txt
+
+# Downloaded classifier files
+*.xml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
