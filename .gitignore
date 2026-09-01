@@ -1,6 +1,6 @@
 # Generated biometric and training data
-faces/
-audio/
+faces/child_voice.mp3
+audio/speech.mp3
 
 # Trained model and labels
 *.yml
