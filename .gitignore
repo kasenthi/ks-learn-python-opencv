@@ -8,9 +8,6 @@ audio/unknown.mp3
 *.yml
 *.txt
 
-# Downloaded classifier files
-*.xml
-
 # Python
 __pycache__/
 *.pyc
