@@ -4,6 +4,7 @@
 
 import cv2
 import os
+import sys
 import asyncio
 import edge_tts
 import time
@@ -11,28 +12,39 @@ import threading
 import miniaudio
 
 def play_file(path):
-    stream = miniaudio.stream_file(path)
+    done = threading.Event()
+
+    def guarded_stream():
+        yield from miniaudio.stream_file(path)
+        done.set()
+
+    gen = guarded_stream()
+    next(gen)  # prime the generator before miniaudio calls send(framecount)
+
     with miniaudio.PlaybackDevice() as device:
-        device.start(stream)
-        while device.running:
-            time.sleep(0.05)
+        device.start(gen)
+        done.wait()
 
 # Tracks the last name spoken and when it was spoken, to avoid repeating announcements
 last_name = ""
 last_spoken = 0
 
-# Load the pre-trained LBPH (Local Binary Pattern Histograms) face recognizer model
+# Load the pre-trained LBPH face recognizer model if available
+model_trained = os.path.exists("faces.yml")
+
 recognizer = cv2.face.LBPHFaceRecognizer_create()
-recognizer.read("faces.yml")
+if model_trained:
+    recognizer.read("faces.yml")
+else:
+    print("No trained model found (faces.yml missing). All faces will be treated as unknown.")
 
-# Load names
-# Map from integer label → person's name, populated from names.txt (format: "0,Alice")
+# Load names if available
 names = {}
-
-with open("names.txt", "r") as f:
-    for line in f:
-        label, name = line.strip().split(",", 1)
-        names[int(label)] = name
+if model_trained and os.path.exists("names.txt"):
+    with open("names.txt", "r") as f:
+        for line in f:
+            label, name = line.strip().split(",", 1)
+            names[int(label)] = name
 
 
 # NOTE: This function is defined twice (duplicate). Only the second definition takes effect.
@@ -159,8 +171,19 @@ camera = cv2.VideoCapture(0)
 # Global flag used to prevent multiple audio threads from playing simultaneously
 audio_playing = False
 
-# Main camera loop — reads frames continuously until 'q' is pressed
-while True:
+stop_event = threading.Event()
+
+def terminal_watcher():
+    print("Press 'q' + Enter in the terminal, or 'q' in the camera window to quit.")
+    for line in sys.stdin:
+        if line.strip().lower() == "q":
+            stop_event.set()
+            return
+
+threading.Thread(target=terminal_watcher, daemon=True).start()
+
+# Main camera loop
+while not stop_event.is_set():
 
     ret, frame = camera.read()
 
@@ -184,16 +207,12 @@ while True:
         # Crop the detected face region from the grayscale frame
         face = gray[y:y+h, x:x+w]
 
-        # Predict the label and distance score for the cropped face
-        # Lower distance = closer match (LBPH measures pixel pattern distance)
-        label, distance = recognizer.predict(face)
-
-        # Recognition
-        # Distance < 80 means close enough to a known face to be a match
-        if distance < 80:
-            name = names.get(label, "Unknown")
-        else:
+        # Skip prediction if no model is trained — treat everyone as unknown
+        if not model_trained:
             name = "Unknown"
+        else:
+            label, distance = recognizer.predict(face)
+            name = names.get(label, "Unknown") if distance < 80 else "Unknown"
 
         # Audio
         current_time = time.time()
@@ -241,9 +260,10 @@ while True:
     # Display the annotated frame in a window
     cv2.imshow("Mama's Camera", frame)
 
-    # Exit the loop when 'q' is pressed
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+    # Exit on 'q' in the camera window, or when the window is closed
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord("q") or cv2.getWindowProperty("Mama's Camera", cv2.WND_PROP_VISIBLE) < 1:
+        stop_event.set()
 
 # Release the webcam and close all OpenCV windows
 camera.release()
