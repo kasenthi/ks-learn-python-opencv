@@ -10,5 +10,7 @@ audio/unknown.mp3
 
 # Python
 __pycache__/
+geocoardinates/__pycache__/
 *.pyc
 *.pyo
+peekabo
