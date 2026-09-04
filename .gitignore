@@ -10,7 +10,14 @@ audio/unknown.mp3
 
 # Python
 __pycache__/
+<<<<<<< HEAD
 geocoordinates/__pycache__
 *.pyc
 *.pyo
 peakaboo
+=======
+geocoardinates/__pycache__/
+*.pyc
+*.pyo
+peekabo
+>>>>>>> c11bbed770f56d9b1b02fdbee3e32761e21ecc5a
